@@ -31,12 +31,13 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Unable to create connection pool")
 	}
+	defer pool.Close()
 
 	// Initialize the database
 	db := database.New(pool)
 
 	// Initialize the auth service
-	authService := auth.NewAuthService(db)
+	authService := auth.NewAuthHandler(db)
 
 	// Set up the router
 	router := mux.NewRouter()

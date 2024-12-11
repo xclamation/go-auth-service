@@ -17,7 +17,7 @@ type AuthHandler struct {
 	db *database.Queries
 }
 
-func NewAuthService(db *database.Queries) *AuthHandler {
+func NewAuthHandler(db *database.Queries) *AuthHandler {
 	return &AuthHandler{db: db}
 }
 
