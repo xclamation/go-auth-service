@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/sirupsen/logrus"
 	"github.com/xclamation/go-auth-service/internal/database"
 	"github.com/xclamation/go-auth-service/pkg/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -38,6 +39,7 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 		UserID pgtype.UUID `json:"user_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.WithError(err).Error("Failed to decode requset body")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -45,6 +47,7 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 	// Generate Access Token
 	accessToken, err := jwt.GenerateJWT(req.UserID, r.RemoteAddr)
 	if err != nil {
+		logrus.WithError(err).Error("Failed to generate access token")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -53,6 +56,7 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 	refreshToken := generateRefreshToken()
 	hashedRefreshToken, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcrypt.DefaultCost)
 	if err != nil {
+		logrus.WithError(err).Error("Failed to generate refresh token hash")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -63,7 +67,9 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 		TokenHash: string(hashedRefreshToken),
 	})
 	if err != nil {
+		logrus.WithError(err).Error("Failed to store refresh token in the database")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// Return tokens
@@ -80,6 +86,7 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logrus.WithError(err).Error("Failed to decode request body")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -87,13 +94,17 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 	// Validate Refresh Token
 	refreshToken, err := h.db.GetRefreshTokenByHash(r.Context(), req.RefreshToken)
 	if err != nil {
+		logrus.WithError(err).Error("Failed to get refresh token by hash")
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
 	}
 
 	// Generate new Access Token
 	accessToken, err := jwt.GenerateJWT(refreshToken.UserID, req.RefreshToken)
 	if err != nil {
+		logrus.WithError(err).Error("Failed to generate access token")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// Return new Access Token

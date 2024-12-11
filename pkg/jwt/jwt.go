@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 )
 
 var jwtKey []byte
@@ -15,13 +16,13 @@ func init() {
 	// Load environment variable from .env file
 	err := godotenv.Load()
 	if err != nil {
-		panic("Error loading .env file")
+		logrus.WithError(err).Fatal("Error loading .env file")
 	}
 
 	// Get the JWT secret from the environment variable
 	jwtKey = []byte(os.Getenv("JWT_SECRET"))
 	if jwtKey == nil {
-		panic("JWT_SECRET environment variable is not set")
+		logrus.Fatal("JWT_SECRET environment variable is not set")
 	}
 }
 
