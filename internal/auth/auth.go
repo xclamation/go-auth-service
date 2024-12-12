@@ -2,8 +2,10 @@ package auth
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -42,6 +44,28 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 		logrus.WithError(err).Error("Failed to decode requset body")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Ensure the user exists in the users table
+	_, err := h.db.GetUserByID(r.Context(), req.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Create the user if not found
+			_, err = h.db.CreateUser(r.Context(), database.CreateUserParams{
+				ID:           req.UserID,
+				Email:        "user@example.com",
+				PasswordHash: "test_password_hash",
+			})
+			if err != nil {
+				logrus.WithError(err).Error("Failed to create user")
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			logrus.WithError(err).Error("Failed to get user by ID")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Generate Access Token
