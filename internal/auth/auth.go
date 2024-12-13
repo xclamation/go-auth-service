@@ -34,6 +34,11 @@ func generateRefreshToken() string {
 	return base64.StdEncoding.EncodeToString(token)
 }
 
+// sendEmailWarning sends an email warning to the user
+func sendEmailWarning(email, newIP string) {
+	logrus.Infof("Sending email warning to %s about new IP address: %s", email, newIP)
+}
+
 func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -121,6 +126,32 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 		logrus.WithError(err).Error("Failed to get refresh token by hash")
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
+	}
+
+	// Ensure the user exists in the users table
+	user, err := h.db.GetUserByID(r.Context(), refreshToken.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logrus.WithError(err).Error("User not found")
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		} else {
+			logrus.WithError(err).Error("Failed to get user by ID")
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	
+	// Check if the IP address has changed
+	claims, err := jwt.ValidateJWT(refreshToken.TokenHash)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to validate access token")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if claims.IP != r.RemoteAddr {
+		// Send email warning to the user
+		sendEmailWarning(user.Email, r.RemoteAddr)
 	}
 
 	// Generate new Access Token

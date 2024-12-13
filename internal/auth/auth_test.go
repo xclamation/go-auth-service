@@ -33,6 +33,18 @@ func (m *MockDB) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (d
 	return args.Get(0).(database.RefreshToken), args.Error(1)
 }
 
+// GetUserByID mocks the GetUserByID method
+func (m *MockDB) GetUserByID(ctx context.Context, userID pgtype.UUID) (database.User, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(database.User), args.Error(1)
+}
+
+// CreateUser mocks the CreateUser method
+func (m *MockDB) CreateUser(ctx context.Context, arg database.CreateUserParams) (database.User, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(database.User), args.Error(1)
+}
+
 // TestGenerateTokenPair tests the GenerateTokenPair handler
 func TestGenerateTokenPair(t *testing.T) {
 	// Create a mock database
@@ -63,9 +75,11 @@ func TestGenerateTokenPair(t *testing.T) {
 	// Crate a test response recorder
 	rr := httptest.NewRecorder()
 
-	// Mock the database call
+	// Mock the database calls
 	mockDB.On("CreateRefreshToken", mock.Anything, mock.Anything).Return(database.RefreshToken{}, nil)
-
+	mockDB.On("CreateUser", mock.Anything, mock.Anything).Return(database.User{ID: pgUUID}, nil)
+	mockDB.On("CreateRefreshToken", mock.Anything, mock.Anything).Return(database.RefreshToken{}, nil)	// Call the handler
+	
 	// Call the handler
 	authHandler.GenerateTokenPair(rr, req)
 
@@ -107,13 +121,14 @@ func TestRefreshTokenPair(t *testing.T) {
 	// Create a test response recorder
 	rr := httptest.NewRecorder()
 
-	// Mock the database call
+	// Mock the database calls
 	userID := uuid.New()
 	pgUUID := pgtype.UUID{}
 	copy(pgUUID.Bytes[:], userID[:])
 	mockDB.On("GetRefreshTokenByHash", mock.Anything, refreshToken).Return(database.RefreshToken{
 		UserID: pgUUID,
 	}, nil)
+	mockDB.On("GetUserByID", mock.Anything, mock.Anything).Return(database.User{ID: pgUUID}, nil)
 
 	// Check the handler
 	authHandler.RefreshTokenPair(rr, req)
