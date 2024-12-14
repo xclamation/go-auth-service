@@ -13,11 +13,15 @@ services:
   db:
     image: postgres:14
     environment:
-      - DATABASE_HOST=host.docker.internal
-      - DATABASE_PORT=5432
-      - DATABASE_USER=postgres
-      - DATABASE_NAME=auth_db
-      - DATABASE_PASSWORD=postgres
-      - DATABASE_SSLMODE=disable
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth_db
+      POSTGRES_PORT: 5432
+      POSTGRES_SSLMODE: disable
     ports:
       - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

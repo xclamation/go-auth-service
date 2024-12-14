@@ -141,7 +141,7 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	// Check if the IP address has changed
 	claims, err := jwt.ValidateJWT(refreshToken.TokenHash)
 	if err != nil {

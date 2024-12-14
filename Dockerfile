@@ -1,8 +1,12 @@
-# Use the official Golang image to create a build artifact.
+# Use the official Golang image as the base image
 FROM golang:1.23 AS builder
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
+
+# Set GOPATH and update PATH
+ENV GOPATH=/go
+ENV PATH=$GOPATH/bin:$PATH
 
 # Copy go mod and sum files
 COPY go.mod go.sum ./
@@ -13,19 +17,26 @@ RUN go mod download
 # Copy the source code into the container
 COPY . .
 
-# Build the Go app with CGO disabled to ensure static linking
-RUN CGO_ENABLED=0 go build -o main cmd/main.go
+# Build the Go app
+RUN go build -o main cmd/main.go
 
-# Use a smaller image for the final build
+# Create a new stage for the final image
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
 
-# Copy the .env file
-COPY .env .env
+# Set the Current Working Directory inside the container
+WORKDIR /app
 
-# Copy the Pre-built binary file from the previous stage
+# Copy the built application from the builder stage
 COPY --from=builder /app/main .
+
+FROM gomicro/goose
+
+# Copy the migrations folder into the container
+ADD /sql/migrations/*.sql /migrations/
+ADD entrypoint.sh /migrations/
+
+# Set the entrypoint to the entrypoint script
+ENTRYPOINT ["/migrations/entrypoint.sh"]
 
 # Command to run the executable
 CMD ["./main"]
