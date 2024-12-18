@@ -1,42 +1,24 @@
-# Use the official Golang image as the base image
 FROM golang:1.23 AS builder
-
-# Set the Current Working Directory inside the container
 WORKDIR /app
-
-# Set GOPATH and update PATH
-ENV GOPATH=/go
-ENV PATH=$GOPATH/bin:$PATH
-
-# Copy go mod and sum files
 COPY go.mod go.sum ./
-
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
 RUN go mod download
-
-# Copy the source code into the container
 COPY . .
-
-# Build the Go app
 RUN go build -o main cmd/main.go
 
-# Create a new stage for the final image
-FROM alpine:latest
+FROM gomicro/goose AS migrator
+WORKDIR /app
+#COPY --from=builder /app/main /app/main
+RUN mkdir -p /app/migrations
+COPY /sql/migrations/*.sql /app/migrations/
+COPY entrypoint.sh /app/migrations/
+RUN chmod +x /app/migrations/entrypoint.sh
 
-# Set the Current Working Directory inside the container
+FROM alpine:latest
 WORKDIR /app
 
-# Copy the built application from the builder stage
-COPY --from=builder /app/main .
+COPY --from=builder /app/main /app/main
+COPY --from=migrator /app/migrations /app/migrations
 
-FROM gomicro/goose
+ENTRYPOINT ["/bin/sh", "/app/migrations/entrypoint.sh"]
 
-# Copy the migrations folder into the container
-ADD /sql/migrations/*.sql /migrations/
-ADD entrypoint.sh /migrations/
-
-# Set the entrypoint to the entrypoint script
-ENTRYPOINT ["/migrations/entrypoint.sh"]
-
-# Command to run the executable
-CMD ["./main"]
+#CMD ["exec","./main"]
