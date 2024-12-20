@@ -39,10 +39,7 @@ Before you begin, ensure you have met the following requirements:
 ## Database Migrations
 This project uses Goose for database migrations. Migrations are stored in the sql/migrations directory.
 
-1. Create a new migration:
-   ```sh
-   goose -dir ./sql/migrations postgres "user=postgres password=postgres dbname=auth_db sslmode=disable" create create_users_table sql
-2. Apply migrations:
+1. Apply migrations:
 
    ```sh
    goose -dir ./sql/migrations postgres "user=postgres password=postgres dbname=auth_db sslmode=disable" up
