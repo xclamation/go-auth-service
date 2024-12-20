@@ -61,3 +61,29 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 	)
 	return i, err
 }
+
+const getRefreshTokenByUserID = `-- name: GetRefreshTokenByUserID :many
+SELECT token_hash
+FROM refresh_tokens
+WHERE user_id = $1
+`
+
+func (q *Queries) GetRefreshTokenByUserID(ctx context.Context, userID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, getRefreshTokenByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var token_hash string
+		if err := rows.Scan(&token_hash); err != nil {
+			return nil, err
+		}
+		items = append(items, token_hash)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

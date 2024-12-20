@@ -58,7 +58,7 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 			// Create the user if not found
 			_, err = h.db.CreateUser(r.Context(), database.CreateUserParams{
 				ID:           req.UserID,
-				Email:        "user@example.com",
+				Email:        "user" + string(req.UserID.Bytes[:4]) + "@example.com",
 				PasswordHash: "test_password_hash",
 			})
 			if err != nil {
@@ -112,7 +112,8 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var req struct {
-		RefreshToken string `json:"refresh_token"`
+		UserID       pgtype.UUID `json:"user_id"`
+		RefreshToken string      `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logrus.WithError(err).Error("Failed to decode request body")
@@ -120,16 +121,8 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate Refresh Token
-	refreshToken, err := h.db.GetRefreshTokenByHash(r.Context(), req.RefreshToken)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to get refresh token by hash")
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
 	// Ensure the user exists in the users table
-	user, err := h.db.GetUserByID(r.Context(), refreshToken.UserID)
+	user, err := h.db.GetUserByID(r.Context(), req.UserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logrus.WithError(err).Error("User not found")
@@ -142,8 +135,32 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get all refresh token hashes for the user from the database
+	tokenHashes, err := h.db.GetRefreshTokenByUserID(r.Context(), req.UserID)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to get refresh token hashes by user ID")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Compare the provided refresh token with each stored hash
+	var validTokenHash string
+	for _, tokenHash := range tokenHashes {
+		if err := bcrypt.CompareHashAndPassword([]byte(tokenHash), []byte(req.RefreshToken)); err == nil {
+			validTokenHash = tokenHash
+			break
+		}
+	}
+
+	// Validate Refresh Token
+	if validTokenHash == "" {
+		logrus.Error("Invalid refresh token")
+		http.Error(w, "Invalid refresh token", http.StatusUnauthorized)
+		return
+	}
+
 	// Check if the IP address has changed
-	claims, err := jwt.ValidateJWT(refreshToken.TokenHash)
+	claims, err := jwt.ValidateJWT(validTokenHash)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to validate access token")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -155,7 +172,7 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate new Access Token
-	accessToken, err := jwt.GenerateJWT(refreshToken.UserID, req.RefreshToken)
+	accessToken, err := jwt.GenerateJWT(req.UserID, req.RefreshToken)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate access token")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
