@@ -27,13 +27,19 @@ Before you begin, ensure you have met the following requirements:
 2. Install dependencies:
    ```sh
     go mod download
+3. Generate JWT secret and put it in .env file
+   ```sh
+   DB_URL = "postgres://postgres:postgres@host.docker.internal/auth_db?sslmode=disable"
+   JWT_SECRET = "your_jwt_secret"
+   DBHOST=host.docker.internal
+   DBUSER=postgres
+   DBPASSWORD=postgres
+   DBNAME=auth_db
+   DBSSL=disable
 ## Database Migrations
 This project uses Goose for database migrations. Migrations are stored in the sql/migrations directory.
 
-1. Create a new migration:
-   ```sh
-   goose -dir ./sql/migrations postgres "user=postgres password=postgres dbname=auth_db sslmode=disable" create create_users_table sql
-2. Apply migrations:
+1. Apply migrations:
 
    ```sh
    goose -dir ./sql/migrations postgres "user=postgres password=postgres dbname=auth_db sslmode=disable" up
