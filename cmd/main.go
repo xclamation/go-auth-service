@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -15,7 +14,6 @@ import (
 )
 
 func main() {
-	fmt.Println("smth")
 	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {

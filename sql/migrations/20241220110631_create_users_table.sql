@@ -3,7 +3,8 @@
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL
+    password_hash TEXT NOT NULL,
+    ip_address INET
 );
 
 CREATE TABLE refresh_tokens (

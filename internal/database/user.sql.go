@@ -7,13 +7,14 @@ package database
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, email, password_hash)
-VALUES ($1, $2, $3)
+INSERT INTO users (id, email, password_hash, ip_address)
+VALUES ($1, $2, $3, $4)
 RETURNING id, email
 `
 
@@ -21,6 +22,7 @@ type CreateUserParams struct {
 	ID           pgtype.UUID
 	Email        string
 	PasswordHash string
+	IpAddress    *netip.Addr
 }
 
 type CreateUserRow struct {
@@ -29,7 +31,12 @@ type CreateUserRow struct {
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.ID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.IpAddress,
+	)
 	var i CreateUserRow
 	err := row.Scan(&i.ID, &i.Email)
 	return i, err
@@ -54,19 +61,20 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email
+SELECT id, email, ip_address
 FROM users
 WHERE id = $1
 `
 
 type GetUserByIDRow struct {
-	ID    pgtype.UUID
-	Email string
+	ID        pgtype.UUID
+	Email     string
+	IpAddress *netip.Addr
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i GetUserByIDRow
-	err := row.Scan(&i.ID, &i.Email)
+	err := row.Scan(&i.ID, &i.Email, &i.IpAddress)
 	return i, err
 }

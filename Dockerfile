@@ -14,4 +14,7 @@ COPY --from=builder /app/main .
 RUN chmod +x ./main
 COPY .env .env
 
+# Install PostgreSQL client using apk
+#RUN apk update && apk add --no-cache postgresql-client
+
 ENTRYPOINT ["/app/migrations/entrypoint.sh"]

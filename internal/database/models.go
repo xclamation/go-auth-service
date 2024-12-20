@@ -5,6 +5,8 @@
 package database
 
 import (
+	"net/netip"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -19,4 +21,5 @@ type User struct {
 	ID           pgtype.UUID
 	Email        string
 	PasswordHash string
+	IpAddress    *netip.Addr
 }

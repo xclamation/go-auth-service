@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/sirupsen/logrus"
@@ -56,10 +58,23 @@ func (h *AuthHandler) GenerateTokenPair(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Create the user if not found
+			host, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				logrus.WithError(err).Error("Error splitting host and port")
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			ip, err := netip.ParseAddr(host)
+			if err != nil {
+				logrus.WithError(err).Error("Failed to parse IP address")
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			_, err = h.db.CreateUser(r.Context(), database.CreateUserParams{
 				ID:           req.UserID,
 				Email:        "user" + string(req.UserID.Bytes[:4]) + "@example.com",
 				PasswordHash: "test_password_hash",
+				IpAddress:    &ip,
 			})
 			if err != nil {
 				logrus.WithError(err).Error("Failed to create user")
@@ -159,24 +174,24 @@ func (h *AuthHandler) RefreshTokenPair(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if the IP address has changed
-	claims, err := jwt.ValidateJWT(validTokenHash)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to validate access token")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if claims.IP != r.RemoteAddr {
-		// Send email warning to the user
-		sendEmailWarning(user.Email, r.RemoteAddr)
-	}
-
 	// Generate new Access Token
 	accessToken, err := jwt.GenerateJWT(req.UserID, req.RefreshToken)
 	if err != nil {
 		logrus.WithError(err).Error("Failed to generate access token")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Check if the IP address has changed
+	claims, err := jwt.ValidateJWT(accessToken)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to validate access token")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if claims.IP != user.IpAddress.String() {
+		// Send email warning to the user
+		sendEmailWarning(user.Email, r.RemoteAddr)
 	}
 
 	// Return new Access Token
