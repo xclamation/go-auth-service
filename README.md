@@ -50,14 +50,24 @@ This project uses Goose for database migrations. Migrations are stored in the sq
 
    ```sh
    goose -dir ./sql/migrations postgres "user=db_username password=db_password dbname=db_name sslmode=disable" up
-## Usage
+## Local usage
+### For Linux:
 1. Build the application:
 
    ```sh
    go build -o main cmd/main.go
+
 2. Run the application:
    ```sh
    ./main
+
+### For Windows
+1. Build the application:
+   ```sh
+   go build -o main.exe cmd/main.go
+2. Run the application:
+   ```sh
+   ./main.exe
 
 ## Docker
 The project includes a Dockerfile and docker-compose.yml for containerizing the application.
