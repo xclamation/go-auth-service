@@ -24,25 +24,32 @@ Before you begin, ensure you have met the following requirements:
    ```sh
    git clone https://github.com/yourusername/go-auth-service.git
    cd go-auth-service
+
 2. Install dependencies:
    ```sh
-    go mod download
-3. Generate JWT secret and put it in .env file
+   go mod download
+
+3. Rename file `.env.example` to `.env`:
    ```sh
-   DB_URL = "postgres://postgres:postgres@host.docker.internal/auth_db?sslmode=disable"
-   JWT_SECRET = "your_jwt_secret"
+   mv .env.sample .env
+
+4. Generate JWT secret
+5. Open .env and fill it with your values:
+   ```sh
+   DB_URL = "postgres://$DBUSER:$DBPASSWORD@$DBHOST/$DBNAME?sslmode=$DBSSL"
+   JWT_SECRET = "your_jwt_token"
    DBHOST=host.docker.internal
-   DBUSER=postgres
-   DBPASSWORD=postgres
-   DBNAME=auth_db
+   DBUSER=your_db_username
+   DBPASSWORD=your_db_password
+   DBNAME=your_db_name
    DBSSL=disable
+
 ## Database Migrations
 This project uses Goose for database migrations. Migrations are stored in the sql/migrations directory.
-
 1. Apply migrations:
 
    ```sh
-   goose -dir ./sql/migrations postgres "user=postgres password=postgres dbname=auth_db sslmode=disable" up
+   goose -dir ./sql/migrations postgres "user=db_username password=db_password dbname=db_name sslmode=disable" up
 ## Usage
 1. Build the application:
 
